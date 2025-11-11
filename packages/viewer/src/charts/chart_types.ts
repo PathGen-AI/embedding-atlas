@@ -8,6 +8,7 @@ import CountPlotList from "./basic/CountPlotList.svelte";
 import Histogram from "./basic/Histogram.svelte";
 import Histogram2D from "./basic/Histogram2D.svelte";
 import HistogramStack from "./basic/HistogramStack.svelte";
+import LinePlot from "./basic/LinePlot.svelte";
 import MosaicSpec from "./basic/MosaicSpec.svelte";
 import Placeholder from "./basic/Placeholder.svelte";
 import Predicates from "./basic/Predicates.svelte";
@@ -21,6 +22,7 @@ import type {
   Histogram2DSpec,
   HistogramSpec,
   HistogramStackSpec,
+  LineplotSpec,
   MosaicSpecType,
   PredicatesSpec,
 } from "./basic/types.js";
@@ -72,6 +74,7 @@ registerChartType("histogram-stack", HistogramStack);
 registerChartType("histogram-2d", Histogram2D);
 registerChartType("box-plot", BoxPlot);
 registerChartType("mosaic-spec", MosaicSpec);
+registerChartType("line-plot", LinePlot);
 registerChartType("embedding", Embedding);
 registerChartType("predicates", Predicates);
 registerChartType("table", Table);
@@ -84,6 +87,7 @@ export type BuiltinChartSpec =
   | HistogramStackSpec
   | CountPlotSpec
   | MosaicSpecType
+  | LineplotSpec
   | PredicatesSpec
   | EmbeddingSpec
   | TableSpec;
@@ -124,6 +128,19 @@ registerChartBuilder({
     title: x.name,
     data: { field: x.name },
     binCount: 20,
+  }),
+});
+
+registerChartBuilder({
+  icon: "chart-line",
+  description: "Create a line plot over time",
+  ui: [
+    { field: { key: "x", label: "Time Field", types: ["number", "string"], required: true } }, //
+  ] as const,
+  create: ({ x }, context): LineplotSpec | undefined => ({
+    type: "line-plot",
+    title: `${x.name} over time`,
+    data: { table: context.table, x: x.name },
   }),
 });
 

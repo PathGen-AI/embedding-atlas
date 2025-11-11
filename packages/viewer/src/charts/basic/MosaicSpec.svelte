@@ -1,7 +1,9 @@
 <!-- Copyright (c) 2025 Apple Inc. Licensed under MIT License. -->
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { Coordinator } from "@uwdata/mosaic-core";
+  import { isSelection, type Coordinator } from "@uwdata/mosaic-core";
+  import { astToDOM, parseSpec } from "@uwdata/mosaic-spec";
+  import { createAPIContext } from "@uwdata/vgplot";
 
   import type { ChartViewProps } from "../chart.js";
   import type { MosaicSpecType } from "./types.js";
@@ -13,56 +15,105 @@
     spec,
   }: ChartViewProps<MosaicSpecType, {}> = $props();
 
-  let { coordinator } = context;
+  let { coordinator, colorScheme } = context;
 
   let containerDiv: HTMLDivElement | undefined = $state();
-  let mountedElement: HTMLElement | null = $state(null);
+  let containerWidth = $state(width ?? 800);
 
-  async function renderVgplotSpec(coordinator: Coordinator, vgplotSpec: any, container: HTMLDivElement) {
+  function isSourceSelf(container: HTMLElement | undefined, source: any): boolean {
+    if (!container) return false;
+    let plotElement = source.mark?.plot?.element;
+    if (plotElement == null) {
+      return false;
+    }
+    return container?.contains(plotElement) ?? false;
+  }
+
+  async function renderVgplotSpec(
+    coordinator: Coordinator,
+    vgplotSpec: any,
+    container: HTMLDivElement,
+    params: any = {}
+  ) {
     try {
-      // Dynamically import vgplot
-      const vgplot = await import("@uwdata/vgplot");
+      // Parse the spec into AST
+      const ast = parseSpec(vgplotSpec);
       
-      // Clear any existing content
+      // Create API context with coordinator
+      const apiContext = createAPIContext({ coordinator });
+      
+      // Convert AST to DOM
+      const result = await astToDOM(ast, { 
+        params: new Map(Object.entries(params)),
+        api: apiContext 
+      } as any);
+      
+      // Clear existing content
       container.innerHTML = "";
       
-      // Create the plot with the coordinator
-      const plotElement = vgplot.plot(vgplotSpec, { coordinator });
-      
-      // Mount the element
-      if (plotElement) {
-        container.appendChild(plotElement);
-        mountedElement = plotElement;
+      // Append the element
+      if (result.element) {
+        container.appendChild(result.element);
       }
+      
+      // Return cleanup function
+      return () => {
+        for (const key in params) {
+          const selection = params[key];
+          if (!isSelection(selection)) {
+            continue;
+          }
+          for (const clause of selection.clauses) {
+            if (isSourceSelf(container, clause.source)) {
+              clause.source?.reset?.();
+              selection.update({ ...clause, value: null, predicate: null });
+            }
+          }
+        }
+        result.element?.remove();
+      };
     } catch (error) {
       console.error("[MosaicSpec] Failed to render vgplot spec:", error);
       container.innerHTML = `<div style="padding: 1rem; color: #ef4444;">
         Failed to render chart: ${error instanceof Error ? error.message : String(error)}
       </div>`;
+      return () => {};
     }
   }
 
   onMount(() => {
-    return () => {
-      // Cleanup: remove the mounted element
-      if (mountedElement && containerDiv) {
-        containerDiv.innerHTML = "";
-        mountedElement = null;
+    $effect.pre(() => {
+      let destroyFunction: (() => void) | null = null;
+
+      async function makePlot() {
+        if (containerDiv && spec.spec) {
+          destroyFunction = await renderVgplotSpec(
+            coordinator,
+            spec.spec,
+            containerDiv,
+            { filter: context.filter }
+          );
+        }
       }
-    };
+
+      makePlot();
+
+      return () => {
+        destroyFunction?.();
+      };
+    });
   });
 
   $effect(() => {
-    if (containerDiv && spec.spec) {
-      renderVgplotSpec(coordinator, spec.spec, containerDiv);
+    if (width != null) {
+      containerWidth = width;
     }
   });
 </script>
 
 <div 
-  class="p-2 flex flex-col" 
-  style:width={width != null ? `${width}px` : '100%'}
+  class="p-2 w-full" 
+  bind:this={containerDiv}
+  bind:clientWidth={containerWidth}
   style:height={height != null ? `${height}px` : '100%'}
->
-  <div bind:this={containerDiv} class="flex-1 overflow-auto"></div>
-</div>
+></div>

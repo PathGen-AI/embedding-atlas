@@ -72,3 +72,13 @@ export interface MosaicSpecType {
   title?: string;
   spec: any; // Raw vgplot specification object
 }
+export interface LineplotSpec {
+  type: "line-plot";
+  title?: string;
+  data: {
+    table: string;
+    x: string;
+    group?: string | null;
+  };
+  xScaleType?: ScaleType | null;
+}
