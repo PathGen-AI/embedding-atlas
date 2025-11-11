@@ -1,0 +1,11 @@
+# Only exclude development files from npm package
+node_modules/
+.git/
+.github/
+packages/
+scripts/
+excalidraw.log
+.vscode/
+.prettierignore
+.prettierrc
+.npmrc
