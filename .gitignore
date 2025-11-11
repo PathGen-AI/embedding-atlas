@@ -3,7 +3,7 @@ __pycache__/
 node_modules/
 .ipynb_checkpoints/
 build/
-dist/
+# dist/  # Allowing dist files to be committed for GitHub dependency resolution
 distlib/
 target/
 *.tsbuildinfo
