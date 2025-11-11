@@ -8,6 +8,7 @@ import CountPlotList from "./basic/CountPlotList.svelte";
 import Histogram from "./basic/Histogram.svelte";
 import Histogram2D from "./basic/Histogram2D.svelte";
 import HistogramStack from "./basic/HistogramStack.svelte";
+import MosaicSpec from "./basic/MosaicSpec.svelte";
 import Placeholder from "./basic/Placeholder.svelte";
 import Predicates from "./basic/Predicates.svelte";
 import Builder from "./builder/Builder.svelte";
@@ -20,6 +21,7 @@ import type {
   Histogram2DSpec,
   HistogramSpec,
   HistogramStackSpec,
+  MosaicSpecType,
   PredicatesSpec,
 } from "./basic/types.js";
 import type { EmbeddingSpec } from "./embedding/types.js";
@@ -69,6 +71,7 @@ registerChartType("histogram", Histogram);
 registerChartType("histogram-stack", HistogramStack);
 registerChartType("histogram-2d", Histogram2D);
 registerChartType("box-plot", BoxPlot);
+registerChartType("mosaic-spec", MosaicSpec);
 registerChartType("embedding", Embedding);
 registerChartType("predicates", Predicates);
 registerChartType("table", Table);
@@ -80,6 +83,7 @@ export type BuiltinChartSpec =
   | Histogram2DSpec
   | HistogramStackSpec
   | CountPlotSpec
+  | MosaicSpecType
   | PredicatesSpec
   | EmbeddingSpec
   | TableSpec;

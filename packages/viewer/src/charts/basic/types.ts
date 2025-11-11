@@ -66,3 +66,9 @@ export interface PredicatesSpec {
   title?: string;
   items?: { name: string; predicate: string }[];
 }
+
+export interface MosaicSpecType {
+  type: "mosaic-spec";
+  title?: string;
+  spec: any; // Raw vgplot specification object
+}
