@@ -27,10 +27,25 @@ function extract(entrypoint) {
     print(result.decode("utf-8"))
   `);
   code = code.replaceAll('"', '\\"');
-  let helpCommand = `uv run python -c "${code}"`;
+  // Determine minimal extra packages needed based on the module being imported.
+  let extras = ["docutils"];
+  if (module === "embedding_atlas.streamlit") {
+    // Required by embedding_atlas/streamlit.py
+    extras.push("streamlit");
+  }
+  if (module === "embedding_atlas.widget") {
+    // Required by embedding_atlas/widget.py
+    extras.push("duckdb", "anywidget", "traitlets");
+  }
+  let withFlags = extras.map((p) => `--with ${p}`).join(" ");
+  let helpCommand = `uv run --no-project ${withFlags} python -c "${code}"`;
   let workDir = resolve("../../packages/backend");
-  let result = execSync(helpCommand, { cwd: workDir, encoding: "utf-8" });
-  return result;
+  try {
+    let result = execSync(helpCommand, { cwd: workDir, encoding: "utf-8" });
+    return result;
+  } catch (e) {
+    return null;
+  }
 }
 
 function generate(content) {
@@ -46,6 +61,13 @@ function generate(content) {
 }
 
 export function renderPythonDocstring(name) {
+  // Graceful platform-specific fallback for Intel macOS
+  if (process.platform === "darwin" && process.arch === "x64") {
+    return '<div class="python-docstring" markdown=0><em>Python docstrings omitted on Intel macOS during docs build. Full docs render on other platforms.</em></div>';
+  }
   let data = extract(name);
+  if (data == null) {
+    return '<div class="python-docstring" markdown=0><em>Python docstrings unavailable during docs build (dependency not present). Full docs render on supported platforms.</em></div>';
+  }
   return generate(data);
 }
