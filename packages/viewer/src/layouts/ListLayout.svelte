@@ -237,6 +237,16 @@
   {:else}
     <!-- Mobile layout -->
     <div class="w-full h-full overflow-y-scroll flex flex-col gap-2">
+      <button
+        class="bg-white dark:bg-black rounded-md flex flex-col justify-center items-center gap-2 p-2 w-full text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+        onclick={() => {
+          let id = findUnusedId(charts);
+          onChartsChange({ [id]: { type: "builder", title: "New" } });
+          onStateChange({ chartsOrder: [id, ...chartsOrder] });
+        }}
+      >
+        + Add
+      </button>
       {#each sections.embedding.concat(chartsOrder, sections.table) as id, index (id)}
         {@const isVisible = layoutState.chartVisibility?.[id] ?? true}
         {@const indexInCharts = chartsOrder.indexOf(id)}
