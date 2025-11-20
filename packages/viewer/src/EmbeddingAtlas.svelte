@@ -61,6 +61,17 @@
     return predicateToString(crossFilter.predicate(null));
   }
 
+  // Track crossfilter predicate reactively so onStateChange re-emits on brush changes
+  let crossFilterPredicate: string | null = $state(null);
+  function updateCFPredicate() {
+    try {
+      const p = predicateToString(crossFilter.predicate(null));
+      crossFilterPredicate = p || null;
+    } catch {
+      crossFilterPredicate = null;
+    }
+  }
+
   let columns: ColumnDesc[] = $state.raw([]);
 
   // Column styles
@@ -232,12 +243,26 @@
       chartStates: chartStates,
       layout: layout,
       layoutStates: layoutStates,
-      predicate: currentPredicate(),
+      // Use tracked predicate so this effect re-runs on crossfilter changes
+      predicate: crossFilterPredicate,
     };
     onStateChange?.(state);
   });
 
   onMount(async () => {
+    // Initialize and subscribe to crossfilter changes so predicate updates propagate
+    updateCFPredicate();
+    const handler = () => updateCFPredicate();
+    try {
+      (crossFilter as any)?.addEventListener?.("value", handler);
+    } catch {}
+    try {
+      (crossFilter as any)?.on?.("change", handler);
+    } catch {}
+    try {
+      (crossFilter as any)?.on?.("update", handler);
+    } catch {}
+
     let exclude = [data.projection?.x, data.projection?.y].filter((x) => x != null);
     columns = (await columnDescriptions(coordinator, data.table)).filter((x) => !x.name.startsWith("__"));
     chartContext.columns = columns;
@@ -259,6 +284,19 @@
     }
 
     initialized = true;
+
+    return () => {
+      // Detach listeners
+      try {
+        (crossFilter as any)?.removeEventListener?.("value", handler);
+      } catch {}
+      try {
+        (crossFilter as any)?.off?.("change", handler);
+      } catch {}
+      try {
+        (crossFilter as any)?.off?.("update", handler);
+      } catch {}
+    };
   });
 
   function onWindowKeydown(e: KeyboardEvent) {
