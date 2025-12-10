@@ -1,7 +1,7 @@
 <!-- Copyright (c) 2025 Apple Inc. Licensed under MIT License. -->
 <script lang="ts">
   import { debounce } from "@embedding-atlas/utils";
-  import { Selection } from "@uwdata/mosaic-core";
+  import { Selection, type Selection as SelectionType } from "@uwdata/mosaic-core";
   import { onMount } from "svelte";
   import { writable } from "svelte/store";
 
@@ -43,6 +43,7 @@
     onExportSelection,
     onStateChange,
     cache,
+    filterSelection = null,
   }: EmbeddingAtlasProps = $props();
 
   const { colorScheme, userColorScheme } = makeColorSchemeStore();
@@ -55,21 +56,39 @@
 
   let exportFormat: "json" | "jsonl" | "csv" | "parquet" = $state("parquet");
 
-  const crossFilter = Selection.crossfilter();
+  // Use external shared selection if provided, otherwise fall back to an internal crossfilter.
+  const crossFilter: SelectionType = (filterSelection as SelectionType) ?? Selection.crossfilter();
 
-  function currentPredicate(): string | null {
-    return predicateToString(crossFilter.predicate(null));
-  }
+  // Track the current predicate derived from the crossfilter so that onStateChange
+  // and data queries see updates.
+  let currentPredicateText: string | null = $state(null);
 
-  // Track crossfilter predicate reactively so onStateChange re-emits on brush changes
-  let crossFilterPredicate: string | null = $state(null);
+  // Local debug flag shared with Shuren app: enable by setting
+  // localStorage.setItem("shuren:debug", "1") in the host page.
+  const debugCrossfilter =
+    typeof window !== "undefined" &&
+    (() => {
+      try {
+        return localStorage.getItem("shuren:debug") === "1";
+      } catch {
+        return false;
+      }
+    })();
+
   function updateCFPredicate() {
     try {
       const p = predicateToString(crossFilter.predicate(null));
-      crossFilterPredicate = p || null;
+      currentPredicateText = p && p !== "true" ? p : null;
+      if (debugCrossfilter) {
+        console.debug("[EA] crossFilter predicate:", p);
+      }
     } catch {
-      crossFilterPredicate = null;
+      currentPredicateText = null;
     }
+  }
+
+  function currentPredicate(): string | null {
+    return currentPredicateText;
   }
 
   let columns: ColumnDesc[] = $state.raw([]);
@@ -243,13 +262,16 @@
       chartStates: chartStates,
       layout: layout,
       layoutStates: layoutStates,
-      // Use tracked predicate so this effect re-runs on crossfilter changes
-      predicate: crossFilterPredicate,
+      // Expose the current predicate derived from the shared/internal Selection.
+      predicate: currentPredicateText,
     };
     onStateChange?.(state);
   });
 
-  onMount(async () => {
+  onMount(() => {
+    if (debugCrossfilter) {
+      console.debug("[EA] filterSelection === crossFilter:", filterSelection === crossFilter);
+    }
     // Initialize and subscribe to crossfilter changes so predicate updates propagate
     updateCFPredicate();
     const handler = () => updateCFPredicate();
@@ -263,29 +285,36 @@
       (crossFilter as any)?.on?.("update", handler);
     } catch {}
 
-    let exclude = [data.projection?.x, data.projection?.y].filter((x) => x != null);
-    columns = (await columnDescriptions(coordinator, data.table)).filter((x) => !x.name.startsWith("__"));
-    chartContext.columns = columns;
+    let cancelled = false;
 
-    if (initialState) {
-      loadState(initialState);
-    }
-    if (Object.keys(charts).length == 0) {
-      let newCharts = await defaultCharts(coordinator, data.table, data.id, {
-        exclude: exclude,
-        projection: data.projection
-          ? {
-              ...data.projection,
-              text: data.text ?? undefined,
-            }
-          : undefined,
-      });
-      charts = Object.fromEntries(newCharts.map((spec, i) => [`${i + 1}`, spec]));
-    }
+    (async () => {
+      let exclude = [data.projection?.x, data.projection?.y].filter((x) => x != null);
+      columns = (await columnDescriptions(coordinator, data.table)).filter((x) => !x.name.startsWith("__"));
+      if (cancelled) return;
+      chartContext.columns = columns;
 
-    initialized = true;
+      if (initialState) {
+        loadState(initialState);
+      }
+      if (Object.keys(charts).length == 0) {
+        let newCharts = await defaultCharts(coordinator, data.table, data.id, {
+          exclude: exclude,
+          projection: data.projection
+            ? {
+                ...data.projection,
+                text: data.text ?? undefined,
+              }
+            : undefined,
+        });
+        if (cancelled) return;
+        charts = Object.fromEntries(newCharts.map((spec, i) => [`${i + 1}`, spec]));
+      }
+
+      initialized = true;
+    })();
 
     return () => {
+      cancelled = true;
       // Detach listeners
       try {
         (crossFilter as any)?.removeEventListener?.("value", handler);

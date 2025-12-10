@@ -214,6 +214,13 @@ export declare interface EmbeddingAtlasProps {
     onStateChange?: ((state: EmbeddingAtlasState) => void) | null;
     /** A cache to speed up initialization of the viewer. */
     cache?: Cache_2 | null;
+    /** Optional external Mosaic selection used for cross-filtering.
+     *
+     *  When provided, Embedding Atlas will use this Selection as its global filter
+     *  for all charts (tree, map, EA all share a single Selection). When omitted,
+     *  an internal crossfilter Selection is created and used instead.
+     */
+    filterSelection?: Selection_2 | null;
 }
 
 export declare interface EmbeddingAtlasState {
