@@ -1,22 +1,22 @@
 import { useRef as a, useEffect as n, createElement as m } from "react";
-import { K as u, Q as d } from "./chunk-OIONSBnX.js";
-import { Z, a as v } from "./chunk-OIONSBnX.js";
-import { Z as l } from "./chunk-7mfApMgY.js";
-import { f as N } from "./chunk-7mfApMgY.js";
-import { g as p } from "./chunk-Ckuwohv6.js";
-import { O as R } from "./chunk-Ckuwohv6.js";
+import { j as u, K as d } from "./chunk-b1Rr1vPt.js";
+import { a as M, Q as j } from "./chunk-b1Rr1vPt.js";
+import { X as l } from "./chunk-QHxqa4vm.js";
+import { f as N } from "./chunk-QHxqa4vm.js";
+import { f as p } from "./chunk-Ocp2gizC.js";
+import { A as V } from "./chunk-Ocp2gizC.js";
 import { createKNN as k, createUMAP as D } from "./umap.js";
-function e(s, i = "div", c = { display: "flex" }) {
+function e(s, f = "div", i = { display: "flex" }) {
   return (t) => {
     const o = a(null), r = a(null);
     return n(() => {
-      let f = new s(o.current, t);
-      return r.current = f, () => {
+      let c = new s(o.current, t);
+      return r.current = c, () => {
         r.current?.destroy();
       };
     }, []), n(() => {
       r.current?.update(t);
-    }, [t]), m(i, { ref: o, style: c });
+    }, [t]), m(f, { ref: o, style: i });
   };
 }
 const E = e(p, "div", {
@@ -31,8 +31,8 @@ export {
   w as Table,
   k as createKNN,
   D as createUMAP,
-  Z as defaultCategoryColors,
-  R as defaultCharts,
+  M as defaultCategoryColors,
+  V as defaultCharts,
   N as findClusters,
-  v as maxDensityModeCategories
+  j as maxDensityModeCategories
 };

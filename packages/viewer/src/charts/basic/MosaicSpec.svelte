@@ -59,6 +59,13 @@
       // Return cleanup function
       return () => {
         for (const key in params) {
+          // IMPORTANT: never reset the shared/global crossfilter Selection passed in
+          // as `params.filter`. This Selection is owned by the host app (and may
+          // be shared across multiple charts). Resetting it on chart teardown
+          // causes flicker / snap-back during remounts.
+          if (key === "filter") {
+            continue;
+          }
           const selection = params[key];
           if (!isSelection(selection)) {
             continue;
@@ -73,7 +80,6 @@
         result.element?.remove();
       };
     } catch (error) {
-      console.error("[MosaicSpec] Failed to render vgplot spec:", error);
       container.innerHTML = `<div style="padding: 1rem; color: #ef4444;">
         Failed to render chart: ${error instanceof Error ? error.message : String(error)}
       </div>`;
@@ -81,27 +87,31 @@
     }
   }
 
-  onMount(() => {
-    $effect.pre(() => {
-      let destroyFunction: (() => void) | null = null;
+  $effect(() => {
+    let destroyFunction: (() => void) | null = null;
 
-      async function makePlot() {
-        if (containerDiv && spec.spec) {
-          destroyFunction = await renderVgplotSpec(
-            coordinator,
-            spec.spec,
-            containerDiv,
-            { filter: context.filter }
-          );
-        }
+    async function makePlot() {
+      if (containerDiv && spec.spec) {
+        // Extract params from spec if they exist and merge with the shared crossfilter.
+        // IMPORTANT: we always pass `filter: context.filter` so mosaic-spec charts participate
+        // in Embedding Atlas crossfiltering.
+        const specParams = spec.spec.params || {};
+        const allParams = { ...specParams, filter: context.filter };
+        
+        destroyFunction = await renderVgplotSpec(
+          coordinator,
+          spec.spec,
+          containerDiv,
+          allParams
+        );
       }
+    }
 
-      makePlot();
+    makePlot();
 
-      return () => {
-        destroyFunction?.();
-      };
-    });
+    return () => {
+      destroyFunction?.();
+    };
   });
 
   $effect(() => {
